@@ -1,7 +1,8 @@
-from imessage_reader import fetch_data
+# from imessage_reader import fetch_data
 import datetime
 import sqlite3
 from sqlite3 import Error
+import fetch_data
 
 
 # -m pip install mysql-connector-python
@@ -24,55 +25,46 @@ from sqlite3 import Error
 
 ## FUNCTIONS TO DELETE MESSAGES FROM DATABASE
 def create_connection(db_file):
-    """ create a database connection to the SQLite database
-        specified by the db_file
-    :param db_file: database file
-    :return: Connection object or None
-    """
+    # create a database connection to the SQLite database
+    # specified by the db_file
+    # :param db_file: database file
+    # :return: Connection object or None
     conn = None
     try:
         conn = sqlite3.connect(db_file)
         print("Database connection success")
     except Error as e:
         print(e)
-
     return conn
 
+def promptUser(message):
+    # Prompts the user if they want to delete this message
+    # :message: text message to be prompted
+    # :return: true if user wants to delete message, false otherwise
+    # print("\n")
+    print("\n")
+    print(message)
+    print("Are you sure you want to delete this message?:  (Y/N)")
+    answer = input()
+    while(answer != "Y" and answer != "N" and answer != "STOP"):
+        print("Please enter Y or N or STOP to end program")
+        answer = input()
+    return answer
 
 def delete_task(conn, id):
-    """
-    Delete a task by task id
-    :param conn:  Connection to the SQLite database
-    :param id: id of the task
-    :return:
-    """
-    sql = 'DELETE FROM main.message WHERE rowid=?'
+    # Delete a task by task id
+    # :param conn:  Connection to the SQLite database
+    # :param id: id of the task
+    # :return: none
 
-    def function():
-        print("message deleted")
+    cur = conn.cursor()
+
+    temp = "DELETE FROM main.chat WHERE guid LIKE ?;"
+
     
-    conn.create_function("after_delete_message_plugin", 0, function)
-
-
-    temp = "DELETE FROM main.message WHERE _rowid_ IN ('9040');"
-
-    cur = conn.cursor()
-    # cur.execute(sql, (id,))
-    cur.execute(temp)
+    cur.execute(temp, ('%' + id + '%',))    
     conn.commit()
-    # print ("Total number of rows deleted :" + conn.total_changes)
-
-
-def delete_all_tasks(conn):
-    """
-    Delete all rows in the tasks table
-    :param conn: Connection to the SQLite database
-    :return:
-    """
-    sql = 'DELETE FROM tasks'
-    cur = conn.cursor()
-    cur.execute(sql)
-    conn.commit()
+    print ("Total number of rows deleted :" + str(conn.total_changes))
 
 ## FUNCTIONS TO GET ONLY SPAM MESSAGES
 def get_unique_number_tuples(messages):
@@ -89,7 +81,7 @@ def get_unique_number_tuples(messages):
 # Returns a list of message objects that contain spam messages in the last 30 days
 def get_spam_messages():
     fd = fetch_data.FetchData()
-    messages = fd.get_messages() #Getting all messages in chat.db file
+    messages = fd.get_messages() #Getting all messages in chat.db file on Mac
 
     #Filtering to only messages in the last 30 days
     date_threshold = datetime.datetime.now() - datetime.timedelta(days=30)
@@ -101,11 +93,16 @@ def get_spam_messages():
     #Filters to only messages with a unique phone number (where the phone number appears once throughout all messages)
     # messages = get_unique_number_tuples(messages) #This filter does not remove spam messages that come from the same number multiple times(example: Venmo)
 
+    #Filtering to remove 'none' messages
+    messages = [message for message in messages if message[1] is not None]
+
     return messages
 
 def main():
-    database = r"/Users/maccooley/Desktop/chat copy.db"
+    # database = r"/Users/maccooley/Desktop/chat.db" # Path to test file
+    database = r"/Users/maccooley/Library/Messages/chat.db" # Path to chat.db file 
     
+    # Getting list of spam messages
     spamMessages = get_spam_messages()
 
     for temp in spamMessages:
@@ -113,9 +110,17 @@ def main():
 
     # create a database connection
     conn = create_connection(database)
-    with conn:
-        delete_task(conn, 2)
-    #     # delete_all_tasks(conn);
+    def after_delete_message_plugin():
+        print("message deleted")
+    conn.create_function("after_delete_message_plugin", -1, after_delete_message_plugin)
+
+    
+    for message in spamMessages:
+        userAnswer = promptUser(message[1])
+        if userAnswer== "Y":
+            delete_task(conn, message[0])
+        elif userAnswer == "STOP":
+            break
 
 
 if __name__ == '__main__':
