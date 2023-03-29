@@ -7,7 +7,7 @@ from sqlite3 import Error
 
 # GLOBAL variables
 messages = [] # Stores all messages (as tuples)
-daylength = 5 # Number of days to look back for spam messages
+daylength = 30 # Number of days to look back for spam messages
 index = 0 # Index of message in list of messages (used to keep user at same index in list after a message is deleted)
 
 # Simple break line for console
