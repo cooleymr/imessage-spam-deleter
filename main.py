@@ -5,11 +5,10 @@ from sqlite3 import Error
 
 # -m pip install mysql-connector-python
 
-
-conn = None
-messages = []
-daylength = 15
-index = 0
+# GLOBAL variables
+messages = [] # Stores all messages (as tuples)
+daylength = 5 # Number of days to look back for spam messages
+index = 0 # Index of message in list of messages (used to keep user at same index in list after a message is deleted)
 
 # Simple break line for console
 def line():
@@ -31,7 +30,7 @@ def create_connection(db_file):
 # Prompts user if they want to delete this message. Continues until user answers Y,N, or STOP. Returns answer as String.
 def promptUser(message):
     line()
-    print(str(count) + " of " + str(get_number_addresses(messages)))
+    print(str(index) + " of " + str(get_number_addresses(messages)))
     print("ADDRESS: " + message[0])
     print("Messages from address: " + str(count_messages_from_address(message[0])))
     print("Most recent message on " + str(message[2]) + ": ") 
@@ -63,7 +62,6 @@ def count_messages_from_address(address):
         if message[0] == address:
             num += 1
     return num
-
 
 # Gets messages that are from a unique number. (A number that only has ever sent you 1 message ever. Ex. NOT Venmo)
 def get_unique_number_tuples(messages):
@@ -115,7 +113,6 @@ def main():
     database = r"/Users/maccooley/Library/Messages/chat.db" # Path to chat.db file 
     
     # create a database connection
-    global conn
     conn = create_connection(database)
     def after_delete_message_plugin():
         print("message deleted")
@@ -125,17 +122,16 @@ def main():
     spamMessages = get_spam_messages()
 
     global index
-    index += 1
 
     # Running main program
     print("\nFound: " + str(len(spamMessages)) + " spam messages from " + str(get_number_addresses(spamMessages)) + " addresses " + "in last " + str(daylength) + " days" )
     while(len(spamMessages) != 0):
-        global count
-        count = 0
+        if(index >= len(spamMessages)): # Resets index counter if counting past end of list
+            index = 0
         dict = {} # Dictionary to store addresses already prompted (used to skip over asking messages from same address)
         for message in spamMessages[index:]:
             if(dict.get(message[0]) is None): # If address has not been prompted yet
-                count += 1
+                index += 1
                 userAnswer = promptUser(message)
                 dict[message[0]] = userAnswer
                 if userAnswer== "y":
@@ -144,7 +140,7 @@ def main():
                 elif userAnswer == "STOP":
                     return
             else:
-                userAnswer = dict.get(message[0])
+                userAnswer = dict.get(message[0]) # Storing message address in dict to skip over asking to delete message from same address
         spamMessages = get_spam_messages()
         line()
         print("\nFound: " + str(len(spamMessages)) + " spam messages from " + str(get_number_addresses(spamMessages)) + " addresses")
